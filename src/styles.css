@@ -1097,6 +1097,21 @@ textarea:focus {
   gap: 18px;
 }
 
+.bulk-help,
+.bulk-skipped {
+  margin: 0;
+}
+
+.bulk-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid #dbeadf;
+  background: #f7fcf8;
+  border-radius: 12px;
+}
+
 .full-width-field {
   display: flex;
   flex-direction: column;

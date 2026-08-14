@@ -50,6 +50,21 @@ type FormState = {
   isActive: boolean;
 };
 
+type BulkFormState = {
+  codesText: string;
+  discountType: 'FIXED' | 'PERCENTAGE';
+  discountValue: string;
+  minOrderAmount: string;
+  applicableTo: 'ALL_SERVICES' | 'SELECTED_SERVICES';
+  serviceIds: string[];
+  flowBookNow: boolean;
+  flowPostCompare: boolean;
+  firstBookingOnly: boolean;
+  startDate: string;
+  expiryDate: string;
+  isActive: boolean;
+};
+
 const emptyForm: FormState = {
   code: '',
   discountType: 'FIXED',
@@ -67,6 +82,21 @@ const emptyForm: FormState = {
   isActive: true,
 };
 
+const emptyBulkForm: BulkFormState = {
+  codesText: '',
+  discountType: 'FIXED',
+  discountValue: '100',
+  minOrderAmount: '499',
+  applicableTo: 'ALL_SERVICES',
+  serviceIds: [],
+  flowBookNow: true,
+  flowPostCompare: true,
+  firstBookingOnly: false,
+  startDate: new Date().toISOString().slice(0, 10),
+  expiryDate: '',
+  isActive: true,
+};
+
 const SESSION_KEY = 'eh_coupon_admin_session';
 
 /**
@@ -79,6 +109,76 @@ const couponBaseUrl = useDevProxy
   ? ''
   : (import.meta.env.VITE_COUPON_SERVICE_URL || 'http://localhost:4015').replace(/\/$/, '');
 const serviceToken = useDevProxy ? '' : import.meta.env.VITE_SERVICE_AUTH_TOKEN || '';
+
+function parseBulkCodes(raw: string): string[] {
+  return [...new Set(
+    raw
+      .split(/[\s,;]+/)
+      .map((code) => code.trim().toUpperCase())
+      .filter(Boolean)
+  )];
+}
+
+function buildCouponPayload(
+  form: Pick<
+    FormState,
+    | 'discountType'
+    | 'discountValue'
+    | 'minOrderAmount'
+    | 'applicableTo'
+    | 'serviceIds'
+    | 'flowBookNow'
+    | 'flowPostCompare'
+    | 'redemptionScope'
+    | 'firstBookingOnly'
+    | 'usageLimitPerUser'
+    | 'startDate'
+    | 'expiryDate'
+    | 'isActive'
+  >,
+  formErrorSetter: (message: string) => void,
+): Record<string, unknown> | null {
+  const flowsLockedToCategories = form.applicableTo === 'SELECTED_SERVICES';
+  const derivedFlows = flowsFromServiceIds(form.serviceIds);
+  const flowBookNow = flowsLockedToCategories ? derivedFlows.flowBookNow : form.flowBookNow;
+  const flowPostCompare = flowsLockedToCategories
+    ? derivedFlows.flowPostCompare
+    : form.flowPostCompare;
+
+  const applicableFlows: Array<'BOOK_NOW' | 'POST_COMPARE'> = [];
+  if (flowBookNow) applicableFlows.push('BOOK_NOW');
+  if (flowPostCompare) applicableFlows.push('POST_COMPARE');
+  if (!applicableFlows.length) {
+    formErrorSetter(
+      flowsLockedToCategories
+        ? 'Select at least one Book Now service or Post & Compare category'
+        : 'Select at least one applicable flow',
+    );
+    return null;
+  }
+  if (form.applicableTo === 'SELECTED_SERVICES' && form.serviceIds.length === 0) {
+    formErrorSetter('Select at least one category or service');
+    return null;
+  }
+
+  return {
+    discountType: form.discountType,
+    discountValue: Number(form.discountValue),
+    minOrderAmount: Number(form.minOrderAmount),
+    applicableTo: form.applicableTo,
+    serviceIds: form.applicableTo === 'SELECTED_SERVICES' ? form.serviceIds : [],
+    applicableFlows,
+    redemptionScope: form.redemptionScope,
+    firstBookingOnly: form.firstBookingOnly,
+    usageLimitPerUser:
+      form.redemptionScope === 'GLOBAL_SINGLE_USE'
+        ? 1
+        : Number(form.usageLimitPerUser) || 1,
+    startDate: form.startDate ? new Date(form.startDate).toISOString() : new Date().toISOString(),
+    expiryDate: form.expiryDate ? new Date(form.expiryDate).toISOString() : null,
+    isActive: form.isActive,
+  };
+}
 
 function readSession(): AdminUser | null {
   try {
@@ -289,10 +389,19 @@ function AdminDashboard({
   const [adminTab, setAdminTab] = useState<AdminTab>('coupons');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [bulkForm, setBulkForm] = useState<BulkFormState>(emptyBulkForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkResult, setBulkResult] = useState<null | {
+    createdCount: number;
+    skippedCount: number;
+    createdCodes: string[];
+    skippedCodes: string[];
+  }>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [listQuery, setListQuery] = useState('');
@@ -354,11 +463,39 @@ function AdminDashboard({
     setFormError(null);
   };
 
+  const closeBulk = () => {
+    setBulkOpen(false);
+    setBulkForm(emptyBulkForm);
+    setBulkError(null);
+    setBulkResult(null);
+  };
+
   const openCreate = () => {
     setForm(emptyForm);
     setEditingId(null);
     setFormError(null);
     setFormOpen(true);
+  };
+
+  const openBulk = () => {
+    setBulkForm(emptyBulkForm);
+    setBulkError(null);
+    setBulkResult(null);
+    setBulkOpen(true);
+  };
+
+  const onBulkFileChange = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      setBulkForm((prev) => ({
+        ...prev,
+        codesText: [prev.codesText.trim(), text.trim()].filter(Boolean).join('\n'),
+      }));
+      setBulkError(null);
+    } catch {
+      setBulkError('Unable to read the uploaded file.');
+    }
   };
 
   const startEdit = (c: Coupon) => {
@@ -386,47 +523,11 @@ function AdminDashboard({
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setFormError(null);
-
-    const flowsLockedToCategories = form.applicableTo === 'SELECTED_SERVICES';
-    const derivedFlows = flowsFromServiceIds(form.serviceIds);
-    const flowBookNow = flowsLockedToCategories ? derivedFlows.flowBookNow : form.flowBookNow;
-    const flowPostCompare = flowsLockedToCategories
-      ? derivedFlows.flowPostCompare
-      : form.flowPostCompare;
-
-    const applicableFlows: Array<'BOOK_NOW' | 'POST_COMPARE'> = [];
-    if (flowBookNow) applicableFlows.push('BOOK_NOW');
-    if (flowPostCompare) applicableFlows.push('POST_COMPARE');
-    if (!applicableFlows.length) {
-      setFormError(
-        flowsLockedToCategories
-          ? 'Select at least one Book Now service or Post & Compare category'
-          : 'Select at least one applicable flow',
-      );
-      return;
-    }
-    if (form.applicableTo === 'SELECTED_SERVICES' && form.serviceIds.length === 0) {
-      setFormError('Select at least one category or service');
-      return;
-    }
-
+    const sharedPayload = buildCouponPayload(form, setFormError);
+    if (!sharedPayload) return;
     const payload = {
       code: form.code.trim().toUpperCase(),
-      discountType: form.discountType,
-      discountValue: Number(form.discountValue),
-      minOrderAmount: Number(form.minOrderAmount),
-      applicableTo: form.applicableTo,
-      serviceIds: form.applicableTo === 'SELECTED_SERVICES' ? form.serviceIds : [],
-      applicableFlows,
-      redemptionScope: form.redemptionScope,
-      firstBookingOnly: form.firstBookingOnly,
-      usageLimitPerUser:
-        form.redemptionScope === 'GLOBAL_SINGLE_USE'
-          ? 1
-          : Number(form.usageLimitPerUser) || 1,
-      startDate: form.startDate ? new Date(form.startDate).toISOString() : new Date().toISOString(),
-      expiryDate: form.expiryDate ? new Date(form.expiryDate).toISOString() : null,
-      isActive: form.isActive,
+      ...sharedPayload,
     };
 
     setSaving(true);
@@ -446,6 +547,50 @@ function AdminDashboard({
       await load();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onBulkSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBulkError(null);
+    setBulkResult(null);
+
+    const codes = parseBulkCodes(bulkForm.codesText);
+    if (codes.length === 0) {
+      setBulkError('Paste or upload at least one coupon code.');
+      return;
+    }
+
+    const sharedPayload = buildCouponPayload(
+      {
+        ...bulkForm,
+        redemptionScope: 'GLOBAL_SINGLE_USE',
+        usageLimitPerUser: '1',
+      },
+      setBulkError,
+    );
+    if (!sharedPayload) return;
+
+    setSaving(true);
+    try {
+      const result = await couponApi<{
+        createdCount: number;
+        skippedCount: number;
+        createdCodes: string[];
+        skippedCodes: string[];
+      }>('/api/v1/coupons/admin/coupons/bulk', {
+        method: 'POST',
+        body: JSON.stringify({
+          codes,
+          ...sharedPayload,
+        }),
+      });
+      setBulkResult(result);
+      await load();
+    } catch (err) {
+      setBulkError(err instanceof Error ? err.message : 'Bulk upload failed');
     } finally {
       setSaving(false);
     }
@@ -543,9 +688,14 @@ function AdminDashboard({
               Manage discount codes for Book Now and Post &amp; Compare checkouts.
             </p>
           </div>
-          <button className="btn btn-primary" type="button" onClick={openCreate}>
-            Create coupon
-          </button>
+          <div className="action-group">
+            <button className="btn btn-secondary" type="button" onClick={openBulk}>
+              Bulk upload
+            </button>
+            <button className="btn btn-primary" type="button" onClick={openCreate}>
+              Create coupon
+            </button>
+          </div>
         </div>
 
         <div className="mgmt-stats">
@@ -944,6 +1094,233 @@ function AdminDashboard({
                   {saving ? 'Saving…' : editingId ? 'Save changes' : 'Create coupon'}
                 </button>
                 <button className="btn btn-ghost" type="button" onClick={closeForm}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {adminTab === 'coupons' && bulkOpen ? (
+        <div className="modal-backdrop" onClick={closeBulk} role="presentation">
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="coupon-bulk-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-head">
+              <h2 id="coupon-bulk-title">Bulk upload global single-use coupons</h2>
+              <button className="btn btn-ghost btn-sm" type="button" onClick={closeBulk}>
+                Close
+              </button>
+            </div>
+
+            <form className="coupon-form" onSubmit={onBulkSubmit}>
+              <p className="muted bulk-help">
+                Paste coupon codes or upload a `.txt` / `.csv` file. These coupons are created as
+                global single-use codes and stay hidden from auto-suggested customer lists.
+              </p>
+
+              <label className="full-width-field">
+                Coupon codes
+                <textarea
+                  rows={8}
+                  value={bulkForm.codesText}
+                  onChange={(e) => setBulkForm({ ...bulkForm, codesText: e.target.value.toUpperCase() })}
+                  placeholder={'TARUN100\nTARUN101\nTARUN102'}
+                />
+              </label>
+
+              <label className="full-width-field">
+                Upload file
+                <input
+                  type="file"
+                  accept=".txt,.csv,text/plain,text/csv"
+                  onChange={(e) => void onBulkFileChange(e.target.files?.[0] || null)}
+                />
+              </label>
+
+              <div className="form-grid">
+                <label>
+                  Discount type
+                  <select
+                    value={bulkForm.discountType}
+                    onChange={(e) =>
+                      setBulkForm({
+                        ...bulkForm,
+                        discountType: e.target.value as BulkFormState['discountType'],
+                      })
+                    }
+                  >
+                    <option value="FIXED">Fixed (₹)</option>
+                    <option value="PERCENTAGE">Percentage (%)</option>
+                  </select>
+                </label>
+                <label>
+                  Discount value
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={bulkForm.discountValue}
+                    onChange={(e) => setBulkForm({ ...bulkForm, discountValue: e.target.value })}
+                    required
+                  />
+                </label>
+                <label>
+                  Minimum order amount
+                  <input
+                    type="number"
+                    min="0"
+                    value={bulkForm.minOrderAmount}
+                    onChange={(e) => setBulkForm({ ...bulkForm, minOrderAmount: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Applicable to
+                  <select
+                    value={bulkForm.applicableTo}
+                    onChange={(e) => {
+                      const applicableTo = e.target.value as BulkFormState['applicableTo'];
+                      if (applicableTo === 'ALL_SERVICES') {
+                        setBulkForm({
+                          ...bulkForm,
+                          applicableTo,
+                          serviceIds: [],
+                        });
+                        return;
+                      }
+                      const derived = flowsFromServiceIds(bulkForm.serviceIds);
+                      setBulkForm({
+                        ...bulkForm,
+                        applicableTo,
+                        flowBookNow: derived.flowBookNow,
+                        flowPostCompare: derived.flowPostCompare,
+                      });
+                    }}
+                  >
+                    <option value="ALL_SERVICES">Everything</option>
+                    <option value="SELECTED_SERVICES">Selected services and categories</option>
+                  </select>
+                </label>
+                <label>
+                  Start date
+                  <input
+                    type="date"
+                    value={bulkForm.startDate}
+                    onChange={(e) => setBulkForm({ ...bulkForm, startDate: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Expiry date (optional)
+                  <input
+                    type="date"
+                    value={bulkForm.expiryDate}
+                    onChange={(e) => setBulkForm({ ...bulkForm, expiryDate: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              <label className="full-width-field">
+                Categories and Book Now services
+                <CategorySlugSelect
+                  value={bulkForm.serviceIds}
+                  onChange={(serviceIds) => {
+                    if (bulkForm.applicableTo === 'SELECTED_SERVICES') {
+                      const derived = flowsFromServiceIds(serviceIds);
+                      setBulkForm({
+                        ...bulkForm,
+                        serviceIds,
+                        flowBookNow: derived.flowBookNow,
+                        flowPostCompare: derived.flowPostCompare,
+                      });
+                      return;
+                    }
+                    setBulkForm({ ...bulkForm, serviceIds });
+                  }}
+                  disabled={bulkForm.applicableTo !== 'SELECTED_SERVICES'}
+                />
+              </label>
+
+              <div className="check-row">
+                <label
+                  className={`check-item ${
+                    bulkForm.applicableTo === 'SELECTED_SERVICES' ? 'is-disabled' : ''
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={
+                      bulkForm.applicableTo === 'SELECTED_SERVICES'
+                        ? flowsFromServiceIds(bulkForm.serviceIds).flowBookNow
+                        : bulkForm.flowBookNow
+                    }
+                    disabled={bulkForm.applicableTo === 'SELECTED_SERVICES'}
+                    onChange={(e) => setBulkForm({ ...bulkForm, flowBookNow: e.target.checked })}
+                  />
+                  Book Now
+                </label>
+                <label
+                  className={`check-item ${
+                    bulkForm.applicableTo === 'SELECTED_SERVICES' ? 'is-disabled' : ''
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={
+                      bulkForm.applicableTo === 'SELECTED_SERVICES'
+                        ? flowsFromServiceIds(bulkForm.serviceIds).flowPostCompare
+                        : bulkForm.flowPostCompare
+                    }
+                    disabled={bulkForm.applicableTo === 'SELECTED_SERVICES'}
+                    onChange={(e) => setBulkForm({ ...bulkForm, flowPostCompare: e.target.checked })}
+                  />
+                  Post &amp; Compare
+                </label>
+                <label className="check-item">
+                  <input
+                    type="checkbox"
+                    checked={bulkForm.firstBookingOnly}
+                    onChange={(e) => setBulkForm({ ...bulkForm, firstBookingOnly: e.target.checked })}
+                  />
+                  First booking only
+                </label>
+                <label className="check-item">
+                  <input
+                    type="checkbox"
+                    checked={bulkForm.isActive}
+                    onChange={(e) => setBulkForm({ ...bulkForm, isActive: e.target.checked })}
+                  />
+                  Active
+                </label>
+              </div>
+
+              {bulkError ? <p className="error">{bulkError}</p> : null}
+              {bulkResult ? (
+                <div className="bulk-result">
+                  <p className="ok">
+                    Created {bulkResult.createdCount} coupons. Skipped {bulkResult.skippedCount}{' '}
+                    existing codes.
+                  </p>
+                  {bulkResult.skippedCodes.length > 0 ? (
+                    <p className="muted bulk-skipped">
+                      Skipped: {bulkResult.skippedCodes.slice(0, 25).join(', ')}
+                      {bulkResult.skippedCodes.length > 25
+                        ? ` +${bulkResult.skippedCodes.length - 25} more`
+                        : ''}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="form-actions">
+                <button className="btn btn-primary" type="submit" disabled={saving}>
+                  {saving ? 'Uploading…' : 'Create bulk coupons'}
+                </button>
+                <button className="btn btn-ghost" type="button" onClick={closeBulk}>
                   Cancel
                 </button>
               </div>
