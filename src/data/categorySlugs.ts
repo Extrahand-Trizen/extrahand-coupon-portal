@@ -17,6 +17,10 @@ const BOOK_NOW_RAW: Array<[string, string]> = [
   ['Window & Glass Cleaning', 'window-glass'],
   ['AC Services', 'ac-services'],
   ['Appliance Repair', 'appliance-repair'],
+  ["Women's Beauty", 'womens-beauty'],
+  ["Women's Hair", 'womens-hair'],
+  ["Men's Grooming", 'mens-grooming'],
+  ['Massage', 'massage'],
 ];
 
 /** Post & Compare category slugs (aligned with mobile CATEGORY_TO_SLUG). */

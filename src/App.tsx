@@ -1,8 +1,14 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { CategorySlugSelect } from './components/CategorySlugSelect';
+import { SkuContentPanel } from './components/SkuContentPanel';
+import { HelpSupportPanel } from './components/HelpSupportPanel';
+import { CategoryContentPanel } from './components/CategoryContentPanel';
+import { CategoryManagementPanel } from './components/CategoryManagementPanel';
+import { PaginationControls } from './components/PaginationControls';
 import { flowsFromServiceIds, labelForSlug } from './data/categorySlugs';
 
 type View = 'landing' | 'login' | 'admin';
+type AdminTab = 'coupons' | 'categories' | 'sku-content' | 'help-support' | 'category-content';
 
 type AdminUser = {
   username: string;
@@ -19,6 +25,7 @@ type Coupon = {
   applicableTo: 'ALL_SERVICES' | 'SELECTED_SERVICES';
   serviceIds: string[];
   applicableFlows: Array<'BOOK_NOW' | 'POST_COMPARE'>;
+  redemptionScope: 'PER_USER' | 'GLOBAL_SINGLE_USE';
   firstBookingOnly: boolean;
   usageLimitPerUser: number;
   startDate: string;
@@ -35,6 +42,7 @@ type FormState = {
   serviceIds: string[];
   flowBookNow: boolean;
   flowPostCompare: boolean;
+  redemptionScope: 'PER_USER' | 'GLOBAL_SINGLE_USE';
   firstBookingOnly: boolean;
   usageLimitPerUser: string;
   startDate: string;
@@ -51,6 +59,7 @@ const emptyForm: FormState = {
   serviceIds: [],
   flowBookNow: true,
   flowPostCompare: true,
+  redemptionScope: 'PER_USER',
   firstBookingOnly: false,
   usageLimitPerUser: '1',
   startDate: new Date().toISOString().slice(0, 10),
@@ -277,6 +286,7 @@ function AdminDashboard({
   admin: AdminUser;
   onLogout: () => void;
 }) {
+  const [adminTab, setAdminTab] = useState<AdminTab>('coupons');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -288,6 +298,8 @@ function AdminDashboard({
   const [listQuery, setListQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [flowFilter, setFlowFilter] = useState<'all' | 'BOOK_NOW' | 'POST_COMPARE'>('all');
+  const [couponPage, setCouponPage] = useState(1);
+  const [couponPageSize, setCouponPageSize] = useState(10);
 
   const load = async () => {
     setLoading(true);
@@ -326,6 +338,15 @@ function AdminDashboard({
     });
   }, [coupons, listQuery, statusFilter, flowFilter]);
 
+  useEffect(() => {
+    setCouponPage(1);
+  }, [listQuery, statusFilter, flowFilter]);
+
+  const pagedCoupons = useMemo(() => {
+    const start = (couponPage - 1) * couponPageSize;
+    return filteredCoupons.slice(start, start + couponPageSize);
+  }, [couponPage, couponPageSize, filteredCoupons]);
+
   const closeForm = () => {
     setFormOpen(false);
     setForm(emptyForm);
@@ -351,6 +372,7 @@ function AdminDashboard({
       serviceIds: [...(c.serviceIds || [])],
       flowBookNow: c.applicableFlows.includes('BOOK_NOW'),
       flowPostCompare: c.applicableFlows.includes('POST_COMPARE'),
+      redemptionScope: c.redemptionScope || 'PER_USER',
       firstBookingOnly: c.firstBookingOnly,
       usageLimitPerUser: String(c.usageLimitPerUser),
       startDate: c.startDate ? c.startDate.slice(0, 10) : '',
@@ -378,13 +400,13 @@ function AdminDashboard({
     if (!applicableFlows.length) {
       setFormError(
         flowsLockedToCategories
-          ? 'Select at least one Book Now or Post & Compare category'
+          ? 'Select at least one Book Now service or Post & Compare category'
           : 'Select at least one applicable flow',
       );
       return;
     }
     if (form.applicableTo === 'SELECTED_SERVICES' && form.serviceIds.length === 0) {
-      setFormError('Select at least one category');
+      setFormError('Select at least one category or service');
       return;
     }
 
@@ -396,8 +418,12 @@ function AdminDashboard({
       applicableTo: form.applicableTo,
       serviceIds: form.applicableTo === 'SELECTED_SERVICES' ? form.serviceIds : [],
       applicableFlows,
+      redemptionScope: form.redemptionScope,
       firstBookingOnly: form.firstBookingOnly,
-      usageLimitPerUser: Number(form.usageLimitPerUser) || 1,
+      usageLimitPerUser:
+        form.redemptionScope === 'GLOBAL_SINGLE_USE'
+          ? 1
+          : Number(form.usageLimitPerUser) || 1,
       startDate: form.startDate ? new Date(form.startDate).toISOString() : new Date().toISOString(),
       expiryDate: form.expiryDate ? new Date(form.expiryDate).toISOString() : null,
       isActive: form.isActive,
@@ -482,7 +508,34 @@ function AdminDashboard({
         </button>
       </header>
 
+      <nav className="mgmt-tabs" aria-label="Admin sections">
+        {(
+          [
+            ['coupons', 'Coupons'],
+            ['categories', 'Categories'],
+            ['category-content', 'Services'],
+            ['sku-content', 'Packages / SKUs'],
+            ['help-support', 'Help & Support'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={`mgmt-tab ${adminTab === id ? 'mgmt-tab-active' : ''}`}
+            onClick={() => setAdminTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
       <main className="mgmt-body">
+        {adminTab === 'sku-content' ? <SkuContentPanel /> : null}
+        {adminTab === 'categories' ? <CategoryManagementPanel /> : null}
+        {adminTab === 'category-content' ? <CategoryContentPanel /> : null}
+        {adminTab === 'help-support' ? <HelpSupportPanel /> : null}
+        {adminTab === 'coupons' ? (
+          <>
         <div className="mgmt-page-head">
           <div>
             <h1 className="mgmt-title">Coupons</h1>
@@ -519,7 +572,7 @@ function AdminDashboard({
             className="mgmt-search"
             value={listQuery}
             onChange={(e) => setListQuery(e.target.value)}
-            placeholder="Search code or category…"
+            placeholder="Search code, service, or category..."
           />
           <select
             className="mgmt-filter"
@@ -558,14 +611,14 @@ function AdminDashboard({
                 <th>Code</th>
                 <th>Discount</th>
                 <th>Min order</th>
-                <th>Categories</th>
+                <th>Scope</th>
                 <th>Flows</th>
                 <th>Status</th>
                 <th className="th-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {loading && coupons.length === 0 ? (
+                    {loading && coupons.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="mgmt-empty">
                     Loading coupons…
@@ -581,11 +634,14 @@ function AdminDashboard({
                   </td>
                 </tr>
               ) : (
-                filteredCoupons.map((c) => (
+                pagedCoupons.map((c) => (
                   <tr key={c._id}>
                     <td>
                       <div className="td-code">
                         <span className="code-pill">{c.code}</span>
+                        {c.redemptionScope === 'GLOBAL_SINGLE_USE' ? (
+                          <span className="meta-tag">Global single use</span>
+                        ) : null}
                         {c.firstBookingOnly ? (
                           <span className="meta-tag">First booking</span>
                         ) : null}
@@ -599,7 +655,7 @@ function AdminDashboard({
                     <td className="td-muted">₹{c.minOrderAmount}</td>
                     <td className="cats-cell">
                       {c.applicableTo === 'ALL_SERVICES' ? (
-                        <span className="cat-chip">All categories</span>
+                        <span className="cat-chip">Everything</span>
                       ) : (
                         <div className="cat-chips">
                           {(c.serviceIds || []).slice(0, 2).map((slug) => (
@@ -660,9 +716,21 @@ function AdminDashboard({
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          page={couponPage}
+          pageSize={couponPageSize}
+          totalItems={filteredCoupons.length}
+          onPageChange={setCouponPage}
+          onPageSizeChange={(size) => {
+            setCouponPageSize(size);
+            setCouponPage(1);
+          }}
+        />
+          </>
+        ) : null}
       </main>
 
-      {formOpen ? (
+      {adminTab === 'coupons' && formOpen ? (
         <div className="modal-backdrop" onClick={closeForm} role="presentation">
           <div
             className="modal"
@@ -745,8 +813,26 @@ function AdminDashboard({
                       });
                     }}
                   >
-                    <option value="ALL_SERVICES">All categories</option>
-                    <option value="SELECTED_SERVICES">Selected categories</option>
+                    <option value="ALL_SERVICES">Everything</option>
+                    <option value="SELECTED_SERVICES">Selected services and categories</option>
+                  </select>
+                </label>
+                <label>
+                  Redemption mode
+                  <select
+                    value={form.redemptionScope}
+                    onChange={(e) => {
+                      const redemptionScope = e.target.value as FormState['redemptionScope'];
+                      setForm({
+                        ...form,
+                        redemptionScope,
+                        usageLimitPerUser:
+                          redemptionScope === 'GLOBAL_SINGLE_USE' ? '1' : form.usageLimitPerUser,
+                      });
+                    }}
+                  >
+                    <option value="PER_USER">Per user</option>
+                    <option value="GLOBAL_SINGLE_USE">Global single use</option>
                   </select>
                 </label>
                 <label>
@@ -756,6 +842,7 @@ function AdminDashboard({
                     min="1"
                     value={form.usageLimitPerUser}
                     onChange={(e) => setForm({ ...form, usageLimitPerUser: e.target.value })}
+                    disabled={form.redemptionScope === 'GLOBAL_SINGLE_USE'}
                   />
                 </label>
                 <label>
@@ -777,7 +864,7 @@ function AdminDashboard({
               </div>
 
               <label className="full-width-field">
-                Categories / Book Now services
+                Categories and Book Now services
                 <CategorySlugSelect
                   value={form.serviceIds}
                   onChange={(serviceIds) => {

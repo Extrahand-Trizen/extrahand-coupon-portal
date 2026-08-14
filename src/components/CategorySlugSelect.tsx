@@ -58,7 +58,7 @@ export function CategorySlugSelect({ value, onChange, disabled }: Props) {
       >
         {value.length === 0 ? (
           <span className="slug-placeholder">
-            Search &amp; select Book Now or Post &amp; Compare categories…
+            Search &amp; select Book Now services or Post &amp; Compare categories...
           </span>
         ) : (
           <span className="slug-chips">
@@ -94,7 +94,7 @@ export function CategorySlugSelect({ value, onChange, disabled }: Props) {
           />
           <div className="slug-options">
             {filteredGroups.length === 0 ? (
-              <div className="slug-empty">No categories match</div>
+              <div className="slug-empty">No services or categories match</div>
             ) : (
               filteredGroups.map((g) => (
                 <div key={g.group} className="slug-group">

@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/categoryslugselect.tsx","./src/data/categoryslugs.ts"],"version":"5.9.3"}
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/api/catalogApi.ts","./src/components/CategoryContentPanel.tsx","./src/components/CategoryManagementPanel.tsx","./src/components/CategorySlugSelect.tsx","./src/components/HelpSupportPanel.tsx","./src/components/PaginationControls.tsx","./src/components/SkuContentPanel.tsx","./src/data/categorySlugs.ts"],"version":"5.9.3"}

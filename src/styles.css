@@ -615,6 +615,37 @@ textarea:focus {
   margin-top: 1px;
 }
 
+.mgmt-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+.mgmt-tab {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+
+.mgmt-tab-active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .mgmt-body {
   max-width: 1180px;
   margin: 0 auto;
@@ -869,6 +900,71 @@ textarea:focus {
   text-align: right;
 }
 
+.expandable-row .row-toggle {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.row-caret {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.expanded-cell {
+  background: #fbfbfb;
+  padding: 0 !important;
+}
+
+.nested-services {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px 16px 48px;
+}
+
+.nested-service {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.nested-service strong,
+.nested-service span {
+  display: block;
+}
+
+.nested-service div > span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.nested-empty {
+  margin: 0;
+  color: var(--muted);
+}
+
 .action-group {
   display: inline-flex;
   align-items: center;
@@ -885,6 +981,78 @@ textarea:focus {
 
 .mgmt-empty p {
   margin: 0 0 12px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.pagination-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pagination-summary,
+.pagination-page {
+  font-weight: 600;
+}
+
+.pagination-size {
+  min-width: 104px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.inline-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.service-editor-list {
+  display: grid;
+  gap: 12px;
+}
+
+.service-editor-empty {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  color: var(--muted);
+  background: #fafafa;
+}
+
+.service-editor-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fcfcfc;
+}
+
+.service-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.service-editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
 }
 
 .modal-backdrop {
@@ -1175,6 +1343,10 @@ textarea:focus {
 
 @media (max-width: 720px) {
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .service-editor-grid {
     grid-template-columns: 1fr;
   }
 }
