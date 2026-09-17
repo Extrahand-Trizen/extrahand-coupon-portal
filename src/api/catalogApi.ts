@@ -7,7 +7,11 @@ const useDevProxy = import.meta.env.DEV && !import.meta.env.VITE_API_DIRECT;
 const catalogBaseUrl = useDevProxy
   ? ''
   : (import.meta.env.VITE_TASK_SERVICE_URL || 'http://localhost:4002').replace(/\/$/, '');
-const serviceToken = useDevProxy ? '' : import.meta.env.VITE_SERVICE_AUTH_TOKEN || '';
+const serviceToken = useDevProxy
+  ? ''
+  : (import.meta.env.VITE_SERVICE_AUTH_TOKEN ||
+      import.meta.env.VITE_COUPON_SERVICE_AUTH_TOKEN ||
+      '');
 const portalUserId = import.meta.env.VITE_ADMIN_USER_ID || 'coupon-portal';
 
 export async function catalogApi<T>(path: string, init?: RequestInit): Promise<T> {

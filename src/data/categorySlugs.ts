@@ -9,6 +9,7 @@ export type CategoryOption = {
 
 /** Book Now cart `catalogId` values — same ids sent as serviceIds at Book Now checkout. */
 const BOOK_NOW_RAW: Array<[string, string]> = [
+  ['Hourly Based Services', 'hourly-helper'],
   ['Full House Cleaning', 'full-house'],
   ['Bathroom Cleaning', 'bathroom'],
   ['Kitchen Cleaning', 'kitchen'],
@@ -25,6 +26,7 @@ const BOOK_NOW_RAW: Array<[string, string]> = [
 
 /** Post & Compare category slugs (aligned with mobile CATEGORY_TO_SLUG). */
 const POST_COMPARE_RAW: Array<[string, string]> = [
+  ['Hourly Based Services', 'hourly-based'],
   ['Business Services', 'business-services'],
   ['Marketing & Design', 'marketing-design'],
   ['AC Repair & Service', 'ac-repair'],

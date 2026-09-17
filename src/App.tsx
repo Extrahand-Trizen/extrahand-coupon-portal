@@ -24,10 +24,14 @@ type Coupon = {
   minOrderAmount: number;
   applicableTo: 'ALL_SERVICES' | 'SELECTED_SERVICES';
   serviceIds: string[];
+  applicableLocations?: 'ALL_LOCATIONS' | 'SELECTED_LOCATIONS';
+  cities?: string[];
+  pincodes?: string[];
   applicableFlows: Array<'BOOK_NOW' | 'POST_COMPARE'>;
   redemptionScope: 'PER_USER' | 'GLOBAL_SINGLE_USE';
   firstBookingOnly: boolean;
   usageLimitPerUser: number;
+  overallUsageLimit: number | null;
   startDate: string;
   expiryDate: string | null;
   isActive: boolean;
@@ -40,11 +44,15 @@ type FormState = {
   minOrderAmount: string;
   applicableTo: 'ALL_SERVICES' | 'SELECTED_SERVICES';
   serviceIds: string[];
+  applicableLocations: 'ALL_LOCATIONS' | 'SELECTED_LOCATIONS';
+  citiesInput: string;
+  pincodesInput: string;
   flowBookNow: boolean;
   flowPostCompare: boolean;
   redemptionScope: 'PER_USER' | 'GLOBAL_SINGLE_USE';
   firstBookingOnly: boolean;
   usageLimitPerUser: string;
+  overallUsageLimit: string;
   startDate: string;
   expiryDate: string;
   isActive: boolean;
@@ -57,9 +65,13 @@ type BulkFormState = {
   minOrderAmount: string;
   applicableTo: 'ALL_SERVICES' | 'SELECTED_SERVICES';
   serviceIds: string[];
+  applicableLocations: 'ALL_LOCATIONS' | 'SELECTED_LOCATIONS';
+  citiesInput: string;
+  pincodesInput: string;
   flowBookNow: boolean;
   flowPostCompare: boolean;
   firstBookingOnly: boolean;
+  overallUsageLimit: string;
   startDate: string;
   expiryDate: string;
   isActive: boolean;
@@ -72,11 +84,15 @@ const emptyForm: FormState = {
   minOrderAmount: '499',
   applicableTo: 'ALL_SERVICES',
   serviceIds: [],
+  applicableLocations: 'ALL_LOCATIONS',
+  citiesInput: '',
+  pincodesInput: '',
   flowBookNow: true,
   flowPostCompare: true,
   redemptionScope: 'PER_USER',
   firstBookingOnly: false,
   usageLimitPerUser: '1',
+  overallUsageLimit: '',
   startDate: new Date().toISOString().slice(0, 10),
   expiryDate: '',
   isActive: true,
@@ -89,9 +105,13 @@ const emptyBulkForm: BulkFormState = {
   minOrderAmount: '499',
   applicableTo: 'ALL_SERVICES',
   serviceIds: [],
+  applicableLocations: 'ALL_LOCATIONS',
+  citiesInput: '',
+  pincodesInput: '',
   flowBookNow: true,
   flowPostCompare: true,
   firstBookingOnly: false,
+  overallUsageLimit: '',
   startDate: new Date().toISOString().slice(0, 10),
   expiryDate: '',
   isActive: true,
@@ -108,7 +128,11 @@ const useDevProxy = import.meta.env.DEV && !import.meta.env.VITE_API_DIRECT;
 const couponBaseUrl = useDevProxy
   ? ''
   : (import.meta.env.VITE_COUPON_SERVICE_URL || 'http://localhost:4015').replace(/\/$/, '');
-const serviceToken = useDevProxy ? '' : import.meta.env.VITE_SERVICE_AUTH_TOKEN || '';
+const serviceToken = useDevProxy
+  ? ''
+  : (import.meta.env.VITE_SERVICE_AUTH_TOKEN ||
+      import.meta.env.VITE_COUPON_SERVICE_AUTH_TOKEN ||
+      '');
 
 function parseBulkCodes(raw: string): string[] {
   return [...new Set(
@@ -127,11 +151,15 @@ function buildCouponPayload(
     | 'minOrderAmount'
     | 'applicableTo'
     | 'serviceIds'
+    | 'applicableLocations'
+    | 'citiesInput'
+    | 'pincodesInput'
     | 'flowBookNow'
     | 'flowPostCompare'
     | 'redemptionScope'
     | 'firstBookingOnly'
     | 'usageLimitPerUser'
+    | 'overallUsageLimit'
     | 'startDate'
     | 'expiryDate'
     | 'isActive'
@@ -161,12 +189,39 @@ function buildCouponPayload(
     return null;
   }
 
+  const cities = form.citiesInput
+    ? form.citiesInput
+        .split(',')
+        .map((c) => c.trim().toUpperCase())
+        .filter(Boolean)
+    : [];
+  const pincodes = form.pincodesInput
+    ? form.pincodesInput
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean)
+    : [];
+
+  if (
+    form.applicableLocations === 'SELECTED_LOCATIONS' &&
+    cities.length === 0 &&
+    pincodes.length === 0
+  ) {
+    formErrorSetter(
+      'Specify at least one city or pincode when restricting to selected locations',
+    );
+    return null;
+  }
+
   return {
     discountType: form.discountType,
     discountValue: Number(form.discountValue),
     minOrderAmount: Number(form.minOrderAmount),
     applicableTo: form.applicableTo,
     serviceIds: form.applicableTo === 'SELECTED_SERVICES' ? form.serviceIds : [],
+    applicableLocations: form.applicableLocations,
+    cities: form.applicableLocations === 'SELECTED_LOCATIONS' ? cities : [],
+    pincodes: form.applicableLocations === 'SELECTED_LOCATIONS' ? pincodes : [],
     applicableFlows,
     redemptionScope: form.redemptionScope,
     firstBookingOnly: form.firstBookingOnly,
@@ -174,6 +229,9 @@ function buildCouponPayload(
       form.redemptionScope === 'GLOBAL_SINGLE_USE'
         ? 1
         : Number(form.usageLimitPerUser) || 1,
+    overallUsageLimit: form.overallUsageLimit && Number(form.overallUsageLimit) > 0
+      ? Number(form.overallUsageLimit)
+      : null,
     startDate: form.startDate ? new Date(form.startDate).toISOString() : new Date().toISOString(),
     expiryDate: form.expiryDate ? new Date(form.expiryDate).toISOString() : null,
     isActive: form.isActive,
@@ -512,8 +570,12 @@ function AdminDashboard({
       redemptionScope: c.redemptionScope || 'PER_USER',
       firstBookingOnly: c.firstBookingOnly,
       usageLimitPerUser: String(c.usageLimitPerUser),
+      overallUsageLimit: c.overallUsageLimit == null ? '' : String(c.overallUsageLimit),
       startDate: c.startDate ? c.startDate.slice(0, 10) : '',
       expiryDate: c.expiryDate ? c.expiryDate.slice(0, 10) : '',
+      applicableLocations: c.applicableLocations || 'ALL_LOCATIONS',
+      citiesInput: (c.cities || []).join(', '),
+      pincodesInput: (c.pincodes || []).join(', '),
       isActive: c.isActive,
     });
     setFormError(null);
@@ -792,6 +854,9 @@ function AdminDashboard({
                         {c.redemptionScope === 'GLOBAL_SINGLE_USE' ? (
                           <span className="meta-tag">Global single use</span>
                         ) : null}
+                        {typeof c.overallUsageLimit === 'number' ? (
+                          <span className="meta-tag">{c.overallUsageLimit} total</span>
+                        ) : null}
                         {c.firstBookingOnly ? (
                           <span className="meta-tag">First booking</span>
                         ) : null}
@@ -993,6 +1058,16 @@ function AdminDashboard({
                     value={form.usageLimitPerUser}
                     onChange={(e) => setForm({ ...form, usageLimitPerUser: e.target.value })}
                     disabled={form.redemptionScope === 'GLOBAL_SINGLE_USE'}
+                  />
+                </label>
+                <label>
+                  Overall usage limit
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.overallUsageLimit}
+                    onChange={(e) => setForm({ ...form, overallUsageLimit: e.target.value })}
+                    placeholder="100"
                   />
                 </label>
                 <label>

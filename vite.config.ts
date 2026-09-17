@@ -15,7 +15,11 @@ export default defineConfig(({ mode }) => {
     ''
   );
   const taskTarget = (env.VITE_TASK_SERVICE_URL || 'http://localhost:4002').replace(/\/$/, '');
-  const serviceToken = env.VITE_SERVICE_AUTH_TOKEN || env.SERVICE_AUTH_TOKEN || '';
+  const serviceToken =
+    env.VITE_SERVICE_AUTH_TOKEN ||
+    env.VITE_COUPON_SERVICE_AUTH_TOKEN ||
+    env.SERVICE_AUTH_TOKEN ||
+    '';
   const portalUserId = env.VITE_ADMIN_USER_ID || env.ADMIN_USER_ID || 'coupon-portal';
 
   const injectServiceAuth = (proxy: {
