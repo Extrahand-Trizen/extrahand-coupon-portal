@@ -9,7 +9,12 @@ export type CategoryOption = {
 
 /** Book Now cart `catalogId` values — same ids sent as serviceIds at Book Now checkout. */
 const BOOK_NOW_RAW: Array<[string, string]> = [
-  ['Hourly Based Services', 'hourly-helper'],
+  ['Hourly Based Services (All Durations)', 'hourly-helper'],
+  ['Hourly Helper · 1 hour', 'hourly-1h'],
+  ['Hourly Helper · 1.5 hours', 'hourly-1-5h'],
+  ['Hourly Helper · 2 hours', 'hourly-2h'],
+  ['Hourly Helper · 3 hours', 'hourly-3h'],
+  ['Hourly Helper · 4 hours', 'hourly-4h'],
   ['Full House Cleaning', 'full-house'],
   ['Bathroom Cleaning', 'bathroom'],
   ['Kitchen Cleaning', 'kitchen'],
@@ -128,7 +133,14 @@ export const CATEGORY_OPTIONS_GROUPED: {
   },
 ];
 
+import {
+  CATEGORY_CATALOG,
+  labelForSubcategorySlug,
+} from './categoryCatalog';
+
 export function labelForSlug(slug: string): string {
+  const catLabel = labelForSubcategorySlug(slug);
+  if (catLabel !== slug) return catLabel;
   const bookNow = BOOK_NOW_SERVICE_OPTIONS.find((c) => c.slug === slug);
   const post = POST_COMPARE_CATEGORY_OPTIONS.find((c) => c.slug === slug);
   if (bookNow && post) return bookNow.label;
@@ -137,8 +149,21 @@ export function labelForSlug(slug: string): string {
   return slug;
 }
 
-const BOOK_NOW_SLUG_SET = new Set(BOOK_NOW_SERVICE_OPTIONS.map((c) => c.slug));
-const POST_COMPARE_SLUG_SET = new Set(POST_COMPARE_CATEGORY_OPTIONS.map((c) => c.slug));
+const BOOK_NOW_SLUG_SET = new Set([
+  ...BOOK_NOW_SERVICE_OPTIONS.map((c) => c.slug),
+  ...CATEGORY_CATALOG.filter((c) => c.group === 'Book Now').flatMap((c) => [
+    c.slug,
+    ...c.subcategories.map((s) => s.slug),
+  ]),
+]);
+
+const POST_COMPARE_SLUG_SET = new Set([
+  ...POST_COMPARE_CATEGORY_OPTIONS.map((c) => c.slug),
+  ...CATEGORY_CATALOG.filter((c) => c.group === 'Post & Compare').flatMap((c) => [
+    c.slug,
+    ...c.subcategories.map((s) => s.slug),
+  ]),
+]);
 
 /** Infer applicable flows from selected service/category slugs. */
 export function flowsFromServiceIds(serviceIds: string[]): {

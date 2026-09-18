@@ -1314,6 +1314,231 @@ textarea:focus {
   margin-top: 2px;
 }
 
+/* —— Category and Subcategory Selector —— */
+.cat-sub-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #fdfdfd;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 6px;
+}
+
+.cat-sub-select-wrap.is-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.cat-picker-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.cat-picker-field,
+.cat-search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cat-picker-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.cat-select-dropdown,
+.cat-sub-search-input {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  font-size: 0.92rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.cat-select-dropdown:focus,
+.cat-sub-search-input:focus {
+  border-color: var(--brand-blue);
+}
+
+.subcat-panel {
+  background: #fafafa;
+  border: 1px solid #ededed;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.subcat-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.subcat-panel-title {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.subcat-badge {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.subcat-badge-muted {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.subcat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.subcat-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--paper);
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.subcat-item:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.subcat-item.is-checked {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.subcat-item.is-all-option {
+  border-color: #facc15;
+  background: #fefce8;
+  grid-column: 1 / -1;
+}
+
+.subcat-item.is-all-option.is-checked {
+  background: #fef08a;
+  border-color: #eab308;
+}
+
+.subcat-item input[type='checkbox'] {
+  margin-top: 3px;
+  accent-color: #16a34a;
+  cursor: pointer;
+}
+
+.subcat-item-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.subcat-item-name {
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.subcat-item-slug {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.selected-summary-box {
+  border-top: 1px solid #eee;
+  padding-top: 12px;
+}
+
+.selected-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.selected-summary-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.btn-clear-targets {
+  background: transparent;
+  border: none;
+  color: var(--danger);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.btn-clear-targets:hover {
+  text-decoration: underline;
+}
+
+.selected-empty-hint {
+  font-size: 0.84rem;
+  color: var(--muted);
+  font-style: italic;
+  padding: 6px 0;
+}
+
+.selected-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.target-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  color: #1e293b;
+}
+
+.target-chip-remove {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.target-chip-remove:hover {
+  color: var(--danger);
+}
+
 @media (max-width: 860px) {
   .hero {
     grid-template-columns: 1fr;

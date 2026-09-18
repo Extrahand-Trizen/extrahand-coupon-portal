@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { CategorySlugSelect } from './components/CategorySlugSelect';
+import { CategorySubcategorySelect } from './components/CategorySubcategorySelect';
 import { SkuContentPanel } from './components/SkuContentPanel';
 import { HelpSupportPanel } from './components/HelpSupportPanel';
 import { CategoryContentPanel } from './components/CategoryContentPanel';
@@ -1089,8 +1089,8 @@ function AdminDashboard({
               </div>
 
               <label className="full-width-field">
-                Categories and Book Now services
-                <CategorySlugSelect
+                Target Categories &amp; Subcategories
+                <CategorySubcategorySelect
                   value={form.serviceIds}
                   onChange={(serviceIds) => {
                     if (form.applicableTo === 'SELECTED_SERVICES') {
@@ -1300,8 +1300,8 @@ function AdminDashboard({
               </div>
 
               <label className="full-width-field">
-                Categories and Book Now services
-                <CategorySlugSelect
+                Target Categories &amp; Subcategories
+                <CategorySubcategorySelect
                   value={bulkForm.serviceIds}
                   onChange={(serviceIds) => {
                     if (bulkForm.applicableTo === 'SELECTED_SERVICES') {
